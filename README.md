@@ -135,24 +135,13 @@ docker --version
 docker compose version
 ```
 
-### Local Development
-
-If you prefer to run the services directly on your machine, install:
-
-* Python 3.12+
-* Node.js 20+
-* npm
-* PostgreSQL 16+
-* Redis
-
-
 
 ##  Installation
 
 Clone the repository:
 
-```bashhttps://github.com/yemizerfe/NexusGuard.git
-git clone 
+```bash
+git clone https://github.com/yemizerfe/NexusGuard.git
 cd securityTesterApp
 docker compose up
 
