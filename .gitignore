@@ -1,0 +1,31 @@
+# ---------- Python ----------
+__pycache__/
+**/__pycache__
+*.py[cod]
+*.egg-info/
+server/venv/
+.venv/
+
+# ---------- Node ----------
+node_modules/
+client/dist/
+
+# ---------- Builds / caches ----------
+*.tsbuildinfo
+*.log
+
+# ---------- Runtime data ----------
+*.db
+*.sqlite3
+
+# ---------- Secrets ----------
+.env
+server/.env
+*.env.local
+
+# ---------- OS / editor ----------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

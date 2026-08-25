@@ -1,0 +1,55 @@
+name: nexusguard
+
+services:
+  # ---------------- PostgreSQL database ----------------
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: nexusguard
+      POSTGRES_PASSWORD: nexusguard
+      POSTGRES_DB: nexusguard
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexusguard -d nexusguard"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  # ---------------- Redis (optional task queue) ----------------
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  # ---------------- FastAPI backend ----------------
+  backend:
+    build: ./server
+    env_file:
+      - ./server/.env          # provides SECRET_KEY / GOOGLE_API_KEY
+    environment:
+      # Inside the compose network the DB and Redis are reachable by service name
+      DATABASE_URL: postgresql+asyncpg://nexusguard:nexusguard@db:5432/nexusguard
+      REDIS_URL: redis://redis:6379/0
+      FRONTEND_URL: http://localhost:8080
+      CORS_ORIGINS: "http://localhost:5173,http://localhost:3000,http://localhost:8080"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  # ---------------- React frontend (nginx) ----------------
+  frontend:
+    build: ./client
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:
