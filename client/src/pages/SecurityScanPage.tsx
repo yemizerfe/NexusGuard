@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Shield, 
-  Search, 
-  AlertTriangle,  
+  Shield,
+  Search,
+  AlertTriangle,
   Loader2,
   FileText,
   History,
@@ -22,7 +22,8 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { DEFAULT_SCAN_OPTIONS, SCAN_PROFILE_PRESETS, type ScanOptions, type EnabledChecks } from '../../types';
 
-const API_URL = 'http://localhost:8000/api';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/+$/, '');
+const API_URL = `${API_BASE_URL}/api`;
 
 interface Finding {
   type: string;
@@ -68,8 +69,6 @@ const SecurityScanPage = () => {
   const [target, setTarget] = useState('');
   const [scanning, setScanning] = useState(false);
   const [results, setResults] = useState<ScanResult | null>(null);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [scanHistory, setScanHistory] = useState<ScanHistoryItem[]>([]);
   const [activeTab, setActiveTab] = useState<'scan' | 'results' | 'history'>('scan');
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -79,9 +78,8 @@ const SecurityScanPage = () => {
     average_risk_score: 0,
     total_critical_findings: 0
   });
-  
+
   const [historyLimit, setHistoryLimit] = useState(20);
-  const [currentPage, setCurrentPage] = useState(1);
 
   // Standard security-scan parameters (Nessus/ZAP/Nmap-style options)
   const [options, setOptions] = useState<ScanOptions>(DEFAULT_SCAN_OPTIONS);
@@ -91,16 +89,16 @@ const SecurityScanPage = () => {
   const [customPortsInput, setCustomPortsInput] = useState('');
   // Comma-separated paths to skip, e.g. "/health,/status"
   const [excludePathsInput, setExcludePathsInput] = useState('');
-  
+
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'delete' | 'success' | 'error'>('delete');
   const [modalMessage, setModalMessage] = useState('');
   const [modalTitle, setModalTitle] = useState('');
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
-  
+
   const currentScanIdRef = useRef<string | null>(null);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const userInteractedRef = useRef(false);
 
   useEffect(() => {
@@ -112,7 +110,12 @@ const SecurityScanPage = () => {
     };
   }, [historyLimit]);
 
-  const showModal = (type: 'delete' | 'success' | 'error', title: string, message: string, deleteId?: string) => {
+  const showModal = (
+    type: 'delete' | 'success' | 'error',
+    title: string,
+    message: string,
+    deleteId?: string
+  ) => {
     setModalType(type);
     setModalTitle(title);
     setModalMessage(message);
@@ -150,24 +153,24 @@ const SecurityScanPage = () => {
         setLoadingHistory(false);
         return;
       }
-      
+
       const response = await fetch(`${API_URL}/scans/?limit=${historyLimit}`, {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
+        headers: {
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (response.status === 401) {
         localStorage.removeItem('accessToken');
         window.location.href = '/login';
         return;
       }
-      
+
       if (response.ok) {
         const data = await response.json();
         const scans = data.scans || data || [];
-        
+
         const formattedScans = scans.map((scan: any) => ({
           id: scan.id,
           target: scan.target,
@@ -177,7 +180,7 @@ const SecurityScanPage = () => {
           completed_at: scan.completed_at,
           findings_count: scan.findings_count || 0
         }));
-        
+
         setScanHistory(formattedScans);
       } else {
         setScanHistory([]);
@@ -194,10 +197,11 @@ const SecurityScanPage = () => {
     try {
       const token = localStorage.getItem('accessToken');
       if (!token) return;
-      
+
       const response = await fetch(`${API_URL}/scans/stats`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
+
       if (response.ok) {
         const data = await response.json();
         setStats({
@@ -224,13 +228,13 @@ const SecurityScanPage = () => {
     try {
       const token = localStorage.getItem('accessToken');
       const response = await fetch(`${API_URL}/scans/${scanId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         const securityScore = data.risk_score || 0;
-        
+
         const analysisResult: ScanResult = {
           scan_id: data.id,
           risk_score: securityScore,
@@ -254,7 +258,7 @@ const SecurityScanPage = () => {
               .map((f: any) => f.recommendation)
           }
         };
-        
+
         setResults(analysisResult);
         setActiveTab('results');
         showModal('success', 'Success', 'Scan results loaded successfully');
@@ -272,14 +276,14 @@ const SecurityScanPage = () => {
       const token = localStorage.getItem('accessToken');
       const response = await fetch(`${API_URL}/scans/${scanId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       if (response.ok) {
         setScanHistory(prev => prev.filter(scan => scan.id !== scanId));
         await fetchScanStats();
         showModal('success', 'Success', 'Scan deleted successfully');
-        
+
         if (results && results.scan_id === scanId) {
           setResults(null);
           setActiveTab('scan');
@@ -295,7 +299,9 @@ const SecurityScanPage = () => {
 
   const deleteScan = (scanId: string) => {
     const scan = scanHistory.find(s => s.id === scanId);
-    showModal('delete', 'Delete Scan', 
+    showModal(
+      'delete',
+      'Delete Scan',
       `Are you sure you want to delete scan for "${scan?.target || 'this target'}"?\n\nThis action cannot be undone.`,
       scanId
     );
@@ -320,19 +326,19 @@ const SecurityScanPage = () => {
     if (currentScanIdRef.current !== scanId) {
       return;
     }
-    
+
     try {
       const token = localStorage.getItem('accessToken');
       const response = await fetch(`${API_URL}/scans/${scanId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
-        
+
         if (data.status === 'completed') {
           stopPolling();
-          
+
           const securityScore = data.risk_score || 0;
           const analysisResult: ScanResult = {
             scan_id: data.id,
@@ -357,16 +363,16 @@ const SecurityScanPage = () => {
                 .map((f: any) => f.recommendation)
             }
           };
-          
+
           setResults(analysisResult);
-          
+
           if (!userInteractedRef.current) {
             setActiveTab('results');
           }
-          
+
           setScanning(false);
           showModal('success', 'Scan Complete', 'Scan completed successfully!');
-          
+
           await fetchScanHistory();
           await fetchScanStats();
         } else if (data.status === 'failed') {
@@ -386,11 +392,9 @@ const SecurityScanPage = () => {
     userInteractedRef.current = true;
     setTarget('');
     setResults(null);
-    setError('');
-    setSuccess('');
     setScanning(false);
     setActiveTab('scan');
-    
+
     setTimeout(() => {
       userInteractedRef.current = false;
     }, 500);
@@ -444,14 +448,12 @@ const SecurityScanPage = () => {
 
     stopPolling();
     setScanning(true);
-    setError('');
-    setSuccess('');
     setResults(null);
     currentScanIdRef.current = null;
 
     try {
       const token = localStorage.getItem('accessToken');
-      
+
       if (!token) {
         showModal('error', 'Error', 'Please login again');
         setScanning(false);
@@ -465,28 +467,30 @@ const SecurityScanPage = () => {
         payload.ports = parsePortSpec(customPortsInput);
       }
       payload.exclude_paths = excludePathsInput
-        .split(',').map(s => s.trim()).filter(Boolean);
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
 
       const response = await fetch(`${API_URL}/scans/run`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
 
       const data = await response.json();
-      
+
       if (response.ok) {
         currentScanIdRef.current = data.scan_id;
         showModal('success', 'Scan Started', `Scanning: ${target}`);
-        
+
         const interval = setInterval(() => {
           pollScanResults(data.scan_id);
         }, 2000);
         pollingIntervalRef.current = interval;
-        
+
         await fetchScanHistory();
       } else {
         showModal('error', 'Error', data.detail || 'Scan failed');
@@ -512,7 +516,7 @@ const SecurityScanPage = () => {
   };
 
   const getSeverityBadge = (severity: string) => {
-    switch(severity) {
+    switch (severity) {
       case 'critical': return 'bg-red-500/20 text-red-500 border-red-500/30';
       case 'high': return 'bg-orange-500/20 text-orange-500 border-orange-500/30';
       case 'medium': return 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30';
@@ -521,7 +525,7 @@ const SecurityScanPage = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    switch(status) {
+    switch (status) {
       case 'completed': return 'bg-green-500/20 text-green-500';
       case 'running': return 'bg-blue-500/20 text-blue-500';
       case 'failed': return 'bg-red-500/20 text-red-500';
@@ -539,17 +543,20 @@ const SecurityScanPage = () => {
   };
 
   const totalFindings = results?.findings?.length || 0;
-  const severityBreakdown = results?.summary?.severity_breakdown || { critical: 0, high: 0, medium: 0, low: 0 };
+  const severityBreakdown = results?.summary?.severity_breakdown || {
+    critical: 0,
+    high: 0,
+    medium: 0,
+    low: 0
+  };
 
   const handleLimitChange = (newLimit: number) => {
     setHistoryLimit(newLimit);
-    setCurrentPage(1);
   };
-
-  return (
+            return (
     <div className="flex h-screen bg-gray-950 overflow-hidden">
       <Sidebar />
-      
+
       <div className="flex-1 overflow-auto">
         <div className="p-8">
           {/* Header with Stats */}
@@ -564,10 +571,10 @@ const SecurityScanPage = () => {
                   Scan systems for vulnerabilities, misconfigurations, and threats
                 </p>
               </div>
-              
-              <Button 
-                onClick={startNewScan} 
-                variant="outline" 
+
+              <Button
+                onClick={startNewScan}
+                variant="outline"
                 className="gap-2"
                 disabled={scanning}
               >
@@ -575,7 +582,7 @@ const SecurityScanPage = () => {
                 New Scan
               </Button>
             </div>
-            
+
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
               <Card className="bg-gray-900/50 border-gray-800">
@@ -589,6 +596,7 @@ const SecurityScanPage = () => {
                   </div>
                 </CardContent>
               </Card>
+
               <Card className="bg-gray-900/50 border-gray-800">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
@@ -602,12 +610,15 @@ const SecurityScanPage = () => {
                   </div>
                 </CardContent>
               </Card>
+
               <Card className="bg-gray-900/50 border-gray-800">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-gray-400">Critical Findings</p>
-                      <p className="text-2xl font-bold text-red-500">{stats.total_critical_findings}</p>
+                      <p className="text-2xl font-bold text-red-500">
+                        {stats.total_critical_findings}
+                      </p>
                     </div>
                     <AlertTriangle className="w-8 h-8 text-red-500 opacity-50" />
                   </div>
@@ -629,6 +640,7 @@ const SecurityScanPage = () => {
               <Search className="w-4 h-4 inline mr-2" />
               New Scan
             </button>
+
             <button
               onClick={() => handleTabChange('results')}
               disabled={!results}
@@ -643,6 +655,7 @@ const SecurityScanPage = () => {
               <FileText className="w-4 h-4 inline mr-2" />
               Results {results && `(${results.risk_score})`}
             </button>
+
             <button
               onClick={() => handleTabChange('history')}
               className={`px-4 py-2 font-medium transition-colors ${
@@ -662,7 +675,9 @@ const SecurityScanPage = () => {
               <CardContent className="p-6">
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="target" className="text-gray-300">Target IP / Domain / System</Label>
+                    <Label htmlFor="target" className="text-gray-300">
+                      Target IP / Domain / System
+                    </Label>
                     <div className="flex gap-4 mt-2">
                       <Input
                         id="target"
@@ -674,8 +689,8 @@ const SecurityScanPage = () => {
                         disabled={scanning}
                         autoFocus
                       />
-                      <Button 
-                        onClick={runScan} 
+                      <Button
+                        onClick={runScan}
                         disabled={scanning}
                         size="lg"
                       >
@@ -693,14 +708,15 @@ const SecurityScanPage = () => {
                       </Button>
                     </div>
                   </div>
-                  
-                  {/* Scan Profile Presets - Nessus/OpenVAS-style policies */}
+
+                  {/* Scan Profile Presets */}
                   <div>
                     <Label className="text-gray-300">Scan Profile</Label>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
                       {(Object.keys(SCAN_PROFILE_PRESETS) as Array<keyof typeof SCAN_PROFILE_PRESETS>).map(key => {
                         const preset = SCAN_PROFILE_PRESETS[key];
                         const active = options.profile === key;
+
                         return (
                           <button
                             key={key}
@@ -724,6 +740,7 @@ const SecurityScanPage = () => {
                         );
                       })}
                     </div>
+
                     {options.profile === 'custom' && (
                       <p className="text-[11px] text-yellow-500 mt-1">
                         ⚙ Custom parameters in use (preset values were modified)
@@ -747,7 +764,7 @@ const SecurityScanPage = () => {
 
                   {showAdvanced && (
                     <div className="space-y-4 border border-gray-800 rounded-lg p-4 bg-gray-900/60">
-                      {/* ---- Scope (Nmap-style port specs, ZAP-style intensity) ---- */}
+                      {/* Scope: port specs and scan intensity */}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                           <Label className="text-gray-400 text-xs">Intensity (attack strength)</Label>
@@ -763,6 +780,7 @@ const SecurityScanPage = () => {
                             <option value="aggressive">Aggressive - full wordlist</option>
                           </select>
                         </div>
+
                         <div>
                           <Label className="text-gray-400 text-xs">Port Range</Label>
                           <select
@@ -787,6 +805,7 @@ const SecurityScanPage = () => {
                             <option value="custom">Custom list…</option>
                           </select>
                         </div>
+
                         {useCustomPorts ? (
                           <div>
                             <Label className="text-gray-400 text-xs">Custom Ports</Label>
@@ -802,10 +821,14 @@ const SecurityScanPage = () => {
                           <div>
                             <Label className="text-gray-400 text-xs">Max Ports Scanned</Label>
                             <Input
-                              type="number" min={1} max={65535}
+                              type="number"
+                              min={1}
+                              max={65535}
                               value={options.max_ports}
-                              onChange={e => updateOption('max_ports',
-                                Math.max(1, Math.min(65535, parseInt(e.target.value || '100', 10) || 1)))}
+                              onChange={e => updateOption(
+                                'max_ports',
+                                Math.max(1, Math.min(65535, parseInt(e.target.value || '100', 10) || 1))
+                              )}
                               disabled={scanning}
                               className="mt-1 bg-gray-800/50 border-gray-700 text-white"
                             />
@@ -817,25 +840,35 @@ const SecurityScanPage = () => {
                         <div>
                           <Label className="text-gray-400 text-xs">Timeout (seconds)</Label>
                           <Input
-                            type="number" min={1} max={60}
+                            type="number"
+                            min={1}
+                            max={60}
                             value={options.timeout_seconds}
-                            onChange={e => updateOption('timeout_seconds',
-                              Math.max(1, Math.min(60, parseInt(e.target.value || '5', 10) || 1)))}
+                            onChange={e => updateOption(
+                              'timeout_seconds',
+                              Math.max(1, Math.min(60, parseInt(e.target.value || '5', 10) || 1))
+                            )}
                             disabled={scanning}
                             className="mt-1 bg-gray-800/50 border-gray-700 text-white"
                           />
                         </div>
+
                         <div>
                           <Label className="text-gray-400 text-xs">Concurrent Threads</Label>
                           <Input
-                            type="number" min={1} max={200}
+                            type="number"
+                            min={1}
+                            max={200}
                             value={options.max_threads}
-                            onChange={e => updateOption('max_threads',
-                              Math.max(1, Math.min(200, parseInt(e.target.value || '10', 10) || 1)))}
+                            onChange={e => updateOption(
+                              'max_threads',
+                              Math.max(1, Math.min(200, parseInt(e.target.value || '10', 10) || 1))
+                            )}
                             disabled={scanning}
                             className="mt-1 bg-gray-800/50 border-gray-700 text-white"
                           />
                         </div>
+
                         <div className="col-span-2">
                           <Label className="text-gray-400 text-xs">Exclude Paths (comma-separated)</Label>
                           <Input
@@ -848,7 +881,7 @@ const SecurityScanPage = () => {
                         </div>
                       </div>
 
-                      {/* ---- Check Modules (enable/disable categories) ---- */}
+                      {/* Check Modules */}
                       <div>
                         <Label className="text-gray-400 text-xs">Scan Modules</Label>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
@@ -884,7 +917,7 @@ const SecurityScanPage = () => {
                         </div>
                       </div>
 
-                      {/* ---- HTTP Client Behaviour (Burp/Acunetix-style) ---- */}
+                      {/* HTTP Client Behaviour */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
@@ -897,6 +930,7 @@ const SecurityScanPage = () => {
                             />
                             Follow Redirects
                           </label>
+
                           <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
                             <input
                               type="checkbox"
@@ -911,6 +945,7 @@ const SecurityScanPage = () => {
                             </span>
                           </label>
                         </div>
+
                         <div>
                           <Label className="text-gray-400 text-xs">User-Agent</Label>
                           <Input
@@ -922,7 +957,7 @@ const SecurityScanPage = () => {
                         </div>
                       </div>
 
-                      {/* ---- Reporting ---- */}
+                      {/* Reporting */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
@@ -937,6 +972,7 @@ const SecurityScanPage = () => {
                             <span className="text-[11px] text-gray-500">(Gemini post-analysis)</span>
                           </label>
                         </div>
+
                         <div>
                           <Label className="text-gray-400 text-xs">Min Severity to Report</Label>
                           <select
@@ -955,7 +991,7 @@ const SecurityScanPage = () => {
                     </div>
                   )}
 
-                  {/* What gets scanned - reflects enabled check modules */}
+                  {/* What gets scanned */}
                   <div className="bg-gray-800/30 p-4 rounded-lg">
                     <p className="text-xs text-gray-400 mb-2">🔍 What gets scanned:</p>
                     <div className="flex flex-wrap gap-2 text-xs">
@@ -985,7 +1021,9 @@ const SecurityScanPage = () => {
                         <span className="px-2 py-1 bg-purple-900/40 text-purple-300 rounded">AI Analysis</span>
                       )}
                       {!Object.values(options.enabled_checks).some(Boolean) && (
-                        <span className="px-2 py-1 bg-red-900/40 text-red-300 rounded">All modules disabled!</span>
+                        <span className="px-2 py-1 bg-red-900/40 text-red-300 rounded">
+                          All modules disabled!
+                        </span>
                       )}
                     </div>
                   </div>
@@ -993,8 +1031,7 @@ const SecurityScanPage = () => {
               </CardContent>
             </Card>
           )}
-
-          {/* RESULTS TAB CONTENT */}
+                    {/* RESULTS TAB CONTENT */}
           {activeTab === 'results' && (
             <>
               {loadingResults ? (
@@ -1011,12 +1048,17 @@ const SecurityScanPage = () => {
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between flex-wrap gap-4">
                         <div>
-                          <p className="text-sm text-gray-400 mb-1">Overall Security Score</p>
+                          <p className="text-sm text-gray-400 mb-1">
+                            Overall Security Score
+                          </p>
                           <p className={`text-6xl font-bold ${getRiskColor(results.risk_score)}`}>
                             {results.risk_score}/100
                           </p>
-                          <p className="text-sm mt-2 max-w-md">{results.summary?.message}</p>
+                          <p className="text-sm mt-2 max-w-md">
+                            {results.summary?.message}
+                          </p>
                         </div>
+
                         <div className="text-right">
                           <div className={`text-2xl font-bold ${getRiskColor(results.risk_score)}`}>
                             {results.summary?.status}
@@ -1025,22 +1067,31 @@ const SecurityScanPage = () => {
                             <p>{totalFindings} total findings</p>
                             <div className="flex gap-2 justify-end">
                               {severityBreakdown.critical > 0 && (
-                                <span className="text-red-500">C:{severityBreakdown.critical}</span>
+                                <span className="text-red-500">
+                                  C:{severityBreakdown.critical}
+                                </span>
                               )}
                               {severityBreakdown.high > 0 && (
-                                <span className="text-orange-500">H:{severityBreakdown.high}</span>
+                                <span className="text-orange-500">
+                                  H:{severityBreakdown.high}
+                                </span>
                               )}
                               {severityBreakdown.medium > 0 && (
-                                <span className="text-yellow-500">M:{severityBreakdown.medium}</span>
+                                <span className="text-yellow-500">
+                                  M:{severityBreakdown.medium}
+                                </span>
                               )}
                               {severityBreakdown.low > 0 && (
-                                <span className="text-blue-500">L:{severityBreakdown.low}</span>
+                                <span className="text-blue-500">
+                                  L:{severityBreakdown.low}
+                                </span>
                               )}
                             </div>
                           </div>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
+
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={startNewScan}
                             className="mt-3"
                           >
@@ -1049,13 +1100,21 @@ const SecurityScanPage = () => {
                           </Button>
                         </div>
                       </div>
-                      
+
                       <div className="mt-4 pt-4 border-t border-gray-700">
                         <div className="flex gap-4 text-sm">
-                          <span className="text-red-500">Critical: {severityBreakdown.critical || 0}</span>
-                          <span className="text-orange-500">High: {severityBreakdown.high || 0}</span>
-                          <span className="text-yellow-500">Medium: {severityBreakdown.medium || 0}</span>
-                          <span className="text-blue-500">Low: {severityBreakdown.low || 0}</span>
+                          <span className="text-red-500">
+                            Critical: {severityBreakdown.critical || 0}
+                          </span>
+                          <span className="text-orange-500">
+                            High: {severityBreakdown.high || 0}
+                          </span>
+                          <span className="text-yellow-500">
+                            Medium: {severityBreakdown.medium || 0}
+                          </span>
+                          <span className="text-blue-500">
+                            Low: {severityBreakdown.low || 0}
+                          </span>
                         </div>
                       </div>
                     </CardContent>
@@ -1094,10 +1153,13 @@ const SecurityScanPage = () => {
                             <div className="flex items-start justify-between flex-wrap gap-2">
                               <div className="flex-1">
                                 <h3 className="font-semibold">{finding.name}</h3>
-                                <p className="text-sm mt-1 opacity-90">{finding.message}</p>
+                                <p className="text-sm mt-1 opacity-90">
+                                  {finding.message}
+                                </p>
                                 {finding.recommendation && (
                                   <p className="text-sm mt-2">
-                                    <span className="font-medium">💡 Fix:</span> {finding.recommendation}
+                                    <span className="font-medium">💡 Fix:</span>{' '}
+                                    {finding.recommendation}
                                   </p>
                                 )}
                               </div>
@@ -1114,7 +1176,9 @@ const SecurityScanPage = () => {
                   {results.summary?.top_recommendations?.length > 0 && (
                     <Card className="bg-primary/5 border-primary/20">
                       <CardHeader>
-                        <CardTitle className="text-primary">🎯 Recommended Actions</CardTitle>
+                        <CardTitle className="text-primary">
+                          🎯 Recommended Actions
+                        </CardTitle>
                       </CardHeader>
                       <CardContent>
                         <ul className="space-y-2">
@@ -1132,7 +1196,9 @@ const SecurityScanPage = () => {
               ) : (
                 <Card className="bg-gray-900/50 border-gray-800">
                   <CardContent className="p-12 text-center">
-                    <p className="text-gray-400">No scan results to display. Run a scan or select one from history.</p>
+                    <p className="text-gray-400">
+                      No scan results to display. Run a scan or select one from history.
+                    </p>
                     <Button onClick={startNewScan} className="mt-4">
                       <Search className="w-4 h-4 mr-2" />
                       Run a Scan
@@ -1152,7 +1218,7 @@ const SecurityScanPage = () => {
                     <History className="w-5 h-5" />
                     Scan History ({scanHistory.length} of {stats.total_scans})
                   </CardTitle>
-                  
+
                   <div className="flex items-center gap-2">
                     <Settings className="w-4 h-4 text-gray-400" />
                     <span className="text-sm text-gray-400">Show:</span>
@@ -1169,6 +1235,7 @@ const SecurityScanPage = () => {
                   </div>
                 </div>
               </CardHeader>
+
               <CardContent>
                 {loadingHistory ? (
                   <div className="flex justify-center py-8">
@@ -1185,31 +1252,42 @@ const SecurityScanPage = () => {
                 ) : (
                   <div className="space-y-2">
                     {scanHistory.map((scan) => (
-                      <div key={scan.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-800/30 hover:bg-gray-800/50 transition-colors">
-                        <div 
-                          className="flex-1 cursor-pointer" 
+                      <div
+                        key={scan.id}
+                        className="flex items-center justify-between p-3 rounded-lg bg-gray-800/30 hover:bg-gray-800/50 transition-colors"
+                      >
+                        <div
+                          className="flex-1 cursor-pointer"
                           onClick={() => loadScanResults(scan.id)}
                         >
-                          <p className="font-medium hover:text-primary transition-colors">{scan.target}</p>
-                          <p className="text-xs text-gray-400">{formatDate(scan.created_at)}</p>
+                          <p className="font-medium hover:text-primary transition-colors">
+                            {scan.target}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {formatDate(scan.created_at)}
+                          </p>
                         </div>
+
                         <div className="flex items-center gap-3">
                           <span className={`text-sm font-bold ${getRiskColor(scan.risk_score)}`}>
                             Score: {scan.risk_score}/100
                           </span>
+
                           <span className={`text-xs px-2 py-1 rounded-full ${getStatusBadge(scan.status)}`}>
                             {scan.status}
                           </span>
-                          <Button 
-                            size="sm" 
+
+                          <Button
+                            size="sm"
                             variant="ghost"
                             onClick={() => loadScanResults(scan.id)}
                             title="View results"
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
-                          <Button 
-                            size="sm" 
+
+                          <Button
+                            size="sm"
                             variant="ghost"
                             className="text-red-500 hover:text-red-400"
                             onClick={() => deleteScan(scan.id)}
@@ -1231,7 +1309,11 @@ const SecurityScanPage = () => {
       {/* Custom Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={closeModal} />
+          <div
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            onClick={closeModal}
+          />
+
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -1239,24 +1321,40 @@ const SecurityScanPage = () => {
             className="relative bg-gray-900 rounded-xl border border-gray-700 shadow-2xl max-w-md w-full mx-4 overflow-hidden"
           >
             {/* Modal Header */}
-            <div className={`p-4 ${
-              modalType === 'delete' ? 'bg-red-500/10 border-b border-red-500/20' :
-              modalType === 'success' ? 'bg-primary/10 border-b border-primary/20' :
-              'bg-red-500/10 border-b border-red-500/20'
-            }`}>
+            <div
+              className={`p-4 ${
+                modalType === 'delete'
+                  ? 'bg-red-500/10 border-b border-red-500/20'
+                  : modalType === 'success'
+                  ? 'bg-primary/10 border-b border-primary/20'
+                  : 'bg-red-500/10 border-b border-red-500/20'
+              }`}
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  {modalType === 'delete' && <AlertTriangle className="w-6 h-6 text-red-500" />}
-                  {modalType === 'success' && <CheckCircle className="w-6 h-6 text-primary" />}
-                  {modalType === 'error' && <AlertTriangle className="w-6 h-6 text-red-500" />}
-                  <h2 className={`text-lg font-semibold ${
-                    modalType === 'delete' ? 'text-red-500' :
-                    modalType === 'success' ? 'text-primary' :
-                    'text-red-500'
-                  }`}>
+                  {modalType === 'delete' && (
+                    <AlertTriangle className="w-6 h-6 text-red-500" />
+                  )}
+                  {modalType === 'success' && (
+                    <CheckCircle className="w-6 h-6 text-primary" />
+                  )}
+                  {modalType === 'error' && (
+                    <AlertTriangle className="w-6 h-6 text-red-500" />
+                  )}
+
+                  <h2
+                    className={`text-lg font-semibold ${
+                      modalType === 'delete'
+                        ? 'text-red-500'
+                        : modalType === 'success'
+                        ? 'text-primary'
+                        : 'text-red-500'
+                    }`}
+                  >
                     {modalTitle}
                   </h2>
                 </div>
+
                 <button
                   onClick={closeModal}
                   className="text-gray-400 hover:text-gray-300 transition-colors"
@@ -1284,6 +1382,7 @@ const SecurityScanPage = () => {
                   >
                     Cancel
                   </Button>
+
                   <Button
                     onClick={confirmDelete}
                     className="gap-2 bg-red-600 hover:bg-red-700"
