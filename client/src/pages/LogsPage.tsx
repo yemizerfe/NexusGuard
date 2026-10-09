@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, Download, FileSpreadsheet, FileJson, FileText, X } from 'lucide-react';
+import { Search, Filter, Download, FileSpreadsheet, FileJson, FileText } from 'lucide-react';
 import Sidebar from '../components/layout/sidebar';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
