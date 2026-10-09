@@ -2,8 +2,8 @@
 import { create } from 'zustand';
 import { type ScanResult, type ScanHistoryItem, type ScanStats, type ScanFinding, type ScanOptions, DEFAULT_SCAN_OPTIONS } from '../types';
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/+$/, '');
-const API_URL = `${API_BASE_URL}/api`;
+const API_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api`;
+
 
 interface ScanState {
   // State
