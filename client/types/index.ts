@@ -8,6 +8,7 @@ export interface User {
   is_active?: boolean;
 }
 
+
 export interface LogEntry {
   id: string;
   time: string;
@@ -15,7 +16,13 @@ export interface LogEntry {
   ip: string;
   event: string;
   severity: 'high' | 'medium' | 'low';
+
+  // Optional fields used by the dashboard when available.
+  created_at?: string;
+  user_email?: string;
 }
+
+
 
 export interface Alert {
   id: string;
