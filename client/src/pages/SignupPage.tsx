@@ -1,7 +1,19 @@
-import React, { useState, useEffect } from 'react';
+
+import { useState, useEffect } from 'react';
+import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Shield, Mail, Lock, User, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
+import {
+  Shield,
+  Mail,
+  Lock,
+  User,
+  Eye,
+  EyeOff,
+  CheckCircle,
+  XCircle,
+} from 'lucide-react';
+
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -16,196 +28,286 @@ const SignupPage = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
   const { signup, isLoading, clearError, user } = useAuthStore();
   const navigate = useNavigate();
 
-  // Clear error when user types
+  // Clear the displayed error after five seconds.
   useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => {
-        setError('');
-        clearError();
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
+    if (!error) return;
+
+    const timer = window.setTimeout(() => {
+      setError('');
+      clearError();
+    }, 5000);
+
+    return () => window.clearTimeout(timer);
   }, [error, clearError]);
 
-  // Redirect after signup based on role
+  // Redirect after successful signup based on the user's role.
   useEffect(() => {
-    if (success && user) {
-      const timer = setTimeout(() => {
-        if (user.is_superuser) {
-          navigate('/admin');
-        } else {
-          navigate('/dashboard');
-        }
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
+    if (!success || !user) return;
+
+    const timer = window.setTimeout(() => {
+      if (user.is_superuser) {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
   }, [success, user, navigate]);
 
-  // ✅ Consistent password validation (same as change password)
-  const getPasswordErrors = (pwd: string) => {
-    const errors = [];
-    if (pwd.length < 8) errors.push('At least 8 characters');
-    if (!/[A-Z]/.test(pwd)) errors.push('One uppercase letter');
-    if (!/[a-z]/.test(pwd)) errors.push('One lowercase letter');
-    if (!/[0-9]/.test(pwd)) errors.push('One number');
+  // Password requirements.
+  const getPasswordErrors = (value: string): string[] => {
+    const errors: string[] = [];
+
+    if (value.length < 8) {
+      errors.push('At least 8 characters');
+    }
+
+    if (!/[A-Z]/.test(value)) {
+      errors.push('One uppercase letter');
+    }
+
+    if (!/[a-z]/.test(value)) {
+      errors.push('One lowercase letter');
+    }
+
+    if (!/[0-9]/.test(value)) {
+      errors.push('One number');
+    }
+
     return errors;
   };
 
   const passwordErrors = getPasswordErrors(password);
-  const isPasswordValid = passwordErrors.length === 0 && password.length > 0;
+  const isPasswordValid =
+    passwordErrors.length === 0 && password.length > 0;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setError('');
-    
-    // Validation
+    setSuccess(false);
+
     if (!name.trim()) {
-      setError('Please enter your full name');
+      setError('Please enter your full name.');
       return;
     }
-    
+
     if (!email.trim()) {
-      setError('Please enter your email');
+      setError('Please enter your email.');
       return;
     }
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address');
+
+    if (!emailRegex.test(email.trim())) {
+      setError('Please enter a valid email address.');
       return;
     }
-    
+
     if (!password) {
-      setError('Please enter a password');
+      setError('Please enter a password.');
       return;
     }
-    
-    // ✅ Use consistent password validation
-    if (passwordErrors.length > 0) {
-      setError(`Password must have: ${passwordErrors.join(', ')}`);
+
+    if (!isPasswordValid) {
+      setError(
+        `Password must have: ${passwordErrors.join(', ')}.`
+      );
       return;
     }
-    
+
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError('Passwords do not match.');
       return;
     }
-    
+
     try {
+      await signup(email.trim(), password, name.trim());
       setSuccess(true);
-      await signup(email, password, name);
-    } catch (err: any) {
-      setError(err.message || 'Signup failed. Please try again.');
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Signup failed. Please try again.';
+
+      setError(message);
       setSuccess(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-900 to-black p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-900 via-gray-900 to-black p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border border-gray-700">
-          <div className="text-center mb-8">
-            <div className="flex justify-center mb-4">
-              <div className="p-3 bg-primary/10 rounded-xl">
-                <Shield className="w-12 h-12 text-primary" />
+        <div className="rounded-2xl border border-gray-700 bg-gray-800/50 p-8 shadow-2xl backdrop-blur-sm">
+          <div className="mb-8 text-center">
+            <div className="mb-4 flex justify-center">
+              <div className="rounded-xl bg-primary/10 p-3">
+                <Shield className="h-12 w-12 text-primary" />
               </div>
             </div>
+
             <h1 className="text-3xl font-bold">Create Account</h1>
-            <p className="text-gray-400 mt-2">Join NexusGuard Security Platform</p>
+            <p className="mt-2 text-gray-400">
+              Join NexusGuard Security Platform
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Full Name Field */}
+            {/* Full Name */}
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
+
               <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
+
                 <Input
                   id="name"
                   type="text"
                   placeholder="John Doe"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="pl-10 bg-gray-900 border-gray-700 focus:border-primary transition-colors"
+                  onChange={(event) => setName(event.target.value)}
+                  className="border-gray-700 bg-gray-900 pl-10 transition-colors focus:border-primary"
                   required
                   disabled={isLoading}
+                  autoComplete="name"
                 />
               </div>
             </div>
 
-            {/* Email Field */}
+            {/* Email */}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
+
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
+
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@nexusguard.com"
+                  placeholder="you@example.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 bg-gray-900 border-gray-700 focus:border-primary transition-colors"
+                  onChange={(event) => setEmail(event.target.value)}
+                  className="border-gray-700 bg-gray-900 pl-10 transition-colors focus:border-primary"
                   required
                   disabled={isLoading}
+                  autoComplete="email"
                 />
               </div>
             </div>
 
-            {/* Password Field */}
+            {/* Password */}
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
+
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
+
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 pr-10 bg-gray-900 border-gray-700 focus:border-primary transition-colors"
+                  onChange={(event) => setPassword(event.target.value)}
+                  className="border-gray-700 bg-gray-900 pl-10 pr-10 transition-colors focus:border-primary"
                   required
                   disabled={isLoading}
+                  autoComplete="new-password"
                 />
+
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  aria-label={
+                    showPassword ? 'Hide password' : 'Show password'
+                  }
+                  className="absolute right-3 top-1/2 -translate-y-1/2 transform text-gray-400 hover:text-gray-300"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
-              
-              {/* ✅ Password Requirements List (consistent with change password) */}
-              {password && (
+
+              {/* Password Requirements */}
+              {password.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   className="mt-2 space-y-1"
                 >
-                  <p className="text-xs text-gray-500 mb-1">Password must have:</p>
+                  <p className="mb-1 text-xs text-gray-500">
+                    Password must have:
+                  </p>
+
                   <ul className="space-y-1">
-                    <li className={`text-xs flex items-center gap-2 ${password.length >= 8 ? 'text-green-500' : 'text-gray-500'}`}>
-                      {password.length >= 8 ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                    <li
+                      className={`flex items-center gap-2 text-xs ${
+                        password.length >= 8
+                          ? 'text-green-500'
+                          : 'text-gray-500'
+                      }`}
+                    >
+                      {password.length >= 8 ? (
+                        <CheckCircle className="h-3 w-3" />
+                      ) : (
+                        <XCircle className="h-3 w-3" />
+                      )}
                       At least 8 characters
                     </li>
-                    <li className={`text-xs flex items-center gap-2 ${/[A-Z]/.test(password) ? 'text-green-500' : 'text-gray-500'}`}>
-                      {/[A-Z]/.test(password) ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+
+                    <li
+                      className={`flex items-center gap-2 text-xs ${
+                        /[A-Z]/.test(password)
+                          ? 'text-green-500'
+                          : 'text-gray-500'
+                      }`}
+                    >
+                      {/[A-Z]/.test(password) ? (
+                        <CheckCircle className="h-3 w-3" />
+                      ) : (
+                        <XCircle className="h-3 w-3" />
+                      )}
                       One uppercase letter
                     </li>
-                    <li className={`text-xs flex items-center gap-2 ${/[a-z]/.test(password) ? 'text-green-500' : 'text-gray-500'}`}>
-                      {/[a-z]/.test(password) ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+
+                    <li
+                      className={`flex items-center gap-2 text-xs ${
+                        /[a-z]/.test(password)
+                          ? 'text-green-500'
+                          : 'text-gray-500'
+                      }`}
+                    >
+                      {/[a-z]/.test(password) ? (
+                        <CheckCircle className="h-3 w-3" />
+                      ) : (
+                        <XCircle className="h-3 w-3" />
+                      )}
                       One lowercase letter
                     </li>
-                    <li className={`text-xs flex items-center gap-2 ${/[0-9]/.test(password) ? 'text-green-500' : 'text-gray-500'}`}>
-                      {/[0-9]/.test(password) ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+
+                    <li
+                      className={`flex items-center gap-2 text-xs ${
+                        /[0-9]/.test(password)
+                          ? 'text-green-500'
+                          : 'text-gray-500'
+                      }`}
+                    >
+                      {/[0-9]/.test(password) ? (
+                        <CheckCircle className="h-3 w-3" />
+                      ) : (
+                        <XCircle className="h-3 w-3" />
+                      )}
                       One number
                     </li>
                   </ul>
@@ -213,31 +315,53 @@ const SignupPage = () => {
               )}
             </div>
 
-            {/* Confirm Password Field */}
+            {/* Confirm Password */}
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label htmlFor="confirmPassword">
+                Confirm Password
+              </Label>
+
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
+
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="pl-10 pr-10 bg-gray-900 border-gray-700 focus:border-primary transition-colors"
+                  onChange={(event) =>
+                    setConfirmPassword(event.target.value)
+                  }
+                  className="border-gray-700 bg-gray-900 pl-10 pr-10 transition-colors focus:border-primary"
                   required
                   disabled={isLoading}
+                  autoComplete="new-password"
                 />
+
                 <button
                   type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                  onClick={() =>
+                    setShowConfirmPassword((visible) => !visible)
+                  }
+                  aria-label={
+                    showConfirmPassword
+                      ? 'Hide confirm password'
+                      : 'Show confirm password'
+                  }
+                  className="absolute right-3 top-1/2 -translate-y-1/2 transform text-gray-400 hover:text-gray-300"
                 >
-                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
+
               {confirmPassword && password !== confirmPassword && (
-                <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
+                <p className="mt-1 text-xs text-red-500">
+                  Passwords do not match
+                </p>
               )}
             </div>
 
@@ -246,9 +370,9 @@ const SignupPage = () => {
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20"
+                className="flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3"
               >
-                <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                <XCircle className="h-4 w-4 flex-shrink-0 text-red-500" />
                 <p className="text-sm text-red-500">{error}</p>
               </motion.div>
             )}
@@ -258,22 +382,24 @@ const SignupPage = () => {
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/20"
+                className="flex items-center gap-2 rounded-lg border border-green-500/20 bg-green-500/10 p-3"
               >
-                <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                <p className="text-sm text-green-500">Account created successfully! Redirecting...</p>
+                <CheckCircle className="h-4 w-4 flex-shrink-0 text-green-500" />
+                <p className="text-sm text-green-500">
+                  Account created successfully! Redirecting...
+                </p>
               </motion.div>
             )}
 
             {/* Submit Button */}
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={isLoading}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isLoading || success}
             >
               {isLoading ? (
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   Creating account...
                 </div>
               ) : (
@@ -284,9 +410,9 @@ const SignupPage = () => {
             {/* Login Link */}
             <p className="text-center text-sm text-gray-400">
               Already have an account?{' '}
-              <button 
-                type="button" 
-                onClick={() => navigate('/login')} 
+              <button
+                type="button"
+                onClick={() => navigate('/login')}
                 className="text-primary hover:underline"
                 disabled={isLoading}
               >
