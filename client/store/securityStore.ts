@@ -9,7 +9,7 @@ interface SecurityState {
   logs: LogEntry[];
   alerts: Alert[];
   aiInsights: AIInsight[];
-  stats: DashboardStats;
+  stats: DashboardStats; 
   isLoading: boolean;
   error: string | null;
   
