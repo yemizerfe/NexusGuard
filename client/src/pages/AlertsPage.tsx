@@ -1,6 +1,6 @@
 // AlertsPage.tsx - Updated with target IP display for security scanner
-import React, { useEffect } from 'react';
-import { AlertTriangle, Shield, CheckCircle, Brain, Loader2, Server, Globe, Target, MapPin } from 'lucide-react';
+import { useEffect } from 'react';
+import { AlertTriangle, Shield, CheckCircle, Brain, Loader2, Globe, Target } from 'lucide-react';
 import Sidebar from '../components/layout/sidebar';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
