@@ -38,7 +38,7 @@ const AdminDashboard = () => {
     api_health: "healthy",
     db_health: "healthy",
   });
-  const [loading, setLoading] = useState(true);
+  
   const [recentUsers, setRecentUsers] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
 
