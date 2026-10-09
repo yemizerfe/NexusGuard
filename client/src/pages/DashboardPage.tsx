@@ -1,5 +1,5 @@
 // DashboardPage.tsx - Fixed AI insights auto-refresh
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { 
   Activity, 
   AlertTriangle,  
@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import Sidebar from '../components/layout/sidebar';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
+
 import { useSecurityStore } from '../../store/securityStore';
 import { useAuthStore } from '../../store/authStore';
 import { useScanStore } from '../../store/scanStore';
