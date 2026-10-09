@@ -6,12 +6,21 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
+from sqlalchemy.engine import make_url
+
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./nexusguard.db")
 
-if DATABASE_URL.startswith("postgresql://"):
-  DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
-elif DATABASE_URL.startswith("postgres://"):
-  DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+if DATABASE_URL.startswith(("postgresql://", "postgres://")):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    url = make_url(DATABASE_URL)
+    query = dict(url.query)
+    query.pop("sslmode", None)
+    query.pop("channel_binding", None)
+    DATABASE_URL = url.set(
+        drivername="postgresql+asyncpg",
+        query=query
+    ).render_as_string(hide_password=False)
 
 
 engine = create_async_engine(DATABASE_URL, echo=True, connect_args={"check_same_thread": False} if 'sqlite' in DATABASE_URL else {})
