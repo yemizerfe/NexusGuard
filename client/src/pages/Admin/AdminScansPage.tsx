@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Trash2, Activity, Loader2, RotateCcw, Archive, X, AlertTriangle, CheckCircle, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
 import AdminLayout from '../../components/layout/AdminLayout';
